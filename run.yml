@@ -1,0 +1,40 @@
+- name: setup ca and ssl on control
+  hosts: control_node
+  gather_facts: no
+  become: yes
+  tasks:
+    - name: install openssl
+      apt:
+        name: openssl
+        state: present
+
+    - name: create ca directory
+      file:
+        path: /etc/ssl/myCA
+        state: directory
+        mode: '0755'
+
+    - name: generate private key
+      shell: openssl genrsa -out /etc/ssl/myCA/ca.key 4096
+
+    - name: generate certificate
+      shell: >
+        openssl req -x509 -new -nodes -key /etc/ssl/myCA/ca.key
+        -sha256 -days 365 -out /etc/ssl/myCA/ca.crt
+        -subj "/C=US/ST=Illinois/L=Chicago/O=ConstantSecurity/OU=IT/CN=myCA"
+
+    - name: generate server private key
+      shell: openssl genrsa -out /etc/ssl/myCA/server.key 2048
+
+    - name: generate certificate signing req
+      shell: >
+        openssl req -new -key /etc/ssl/myCA/server.key
+        -out /etc/ssl/myCA/server.csr
+        -subj "/C=US/ST=Illinois/L=Chicago/O=ConstantSecurity/OU=IT/CN=constantsecurity.com"
+
+    - name: sign server certificate with ca
+      shell: >
+        openssl x509 -req -in /etc/ssl/myCA/server.csr
+        -CA /etc/ssl/myCA/ca.crt -CAkey /etc/ssl/myCA/ca.key
+        -CAcreateserial -out /etc/ssl/myCA/server.crt -days 365 -sha256
+
